@@ -13,6 +13,7 @@ set -u
 
 PICO_HOME="${PICO_HOME:-$HOME/.tunnel-pico}"
 BIN="$PICO_HOME/bin"
+SELF_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" 2>/dev/null && pwd || echo .)
 VMPT="${VMPT:-8001}"
 SUB_PATH="${SUB_PATH:-sub}"
 XRAY_VER="v26.10.31"
@@ -49,17 +50,23 @@ verify() { # file sha256 — best effort: skip when no tool or no hash pinned
 
 ensure_xray() {
   [ -x "$BIN/xray" ] && return 0
-  log "downloading xray $XRAY_VER"
   tmp="$PICO_HOME/xray.zip"
-  fetch "https://github.com/XTLS/Xray-core/releases/download/$XRAY_VER/$XZIP" "$tmp" \
-    || die "xray download failed"
-  verify "$tmp" "$XZIP_SHA" || die "xray zip sha256 mismatch"
+  if [ -f "$tmp" ] && verify "$tmp" "$XZIP_SHA"; then
+    log "using cached xray zip"
+  else
+    log "downloading xray $XRAY_VER"
+    fetch "https://github.com/XTLS/Xray-core/releases/download/$XRAY_VER/$XZIP" "$tmp" \
+      || die "xray download failed"
+    verify "$tmp" "$XZIP_SHA" || die "xray zip sha256 mismatch"
+  fi
   if command -v unzip >/dev/null 2>&1; then
-    unzip -p "$tmp" xray > "$BIN/xray" || die "xray extract failed"
+    unzip -p "$tmp" xray > "$BIN/xray" || die "xray extract failed (unzip)"
   elif command -v python3 >/dev/null 2>&1; then
     python3 -c 'import sys,zipfile; sys.stdout.buffer.write(zipfile.ZipFile(sys.argv[1]).read("xray"))' \
-      "$tmp" > "$BIN/xray" || die "xray extract failed"
-  else die "need unzip or python3 to extract xray"; fi
+      "$tmp" > "$BIN/xray" || die "xray extract failed (python3)"
+  elif command -v node >/dev/null 2>&1; then
+    node "$SELF_DIR/unzip.js" "$tmp" xray "$BIN/xray" || die "xray extract failed (node)"
+  else die "need unzip, python3 or node to extract xray"; fi
   chmod +x "$BIN/xray"; rm -f "$tmp"
 }
 
