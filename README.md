@@ -15,6 +15,7 @@ none of that was reachable anyway.
 | --- | --- |
 | `pico.sh` | The whole stack: fetch pinned binaries → render config + subscription → supervise |
 | `index.js` | Node flavor supervisor (placeholder HTTP on `$PORT` + runs `pico.sh`); use where the platform starts `node index.js` |
+| `unzip.js` | Minimal ZIP extractor fallback for hosts with neither unzip nor python3 |
 | `start.sh` | Shell entry: `exec sh pico.sh` |
 | `package.json` | `npm start` → `node index.js` |
 
